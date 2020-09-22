@@ -238,6 +238,52 @@ def position_similarity_request(request: PositionSimilarityRequest) -> PositionS
         dissimilarity_scores=distances,
     )
 
+def position_similarity_request_somhunter(request: PositionSimilarityRequest) -> PositionSimilarityResponse:
+    global regions_env
+    env = regions_env
+    initialize_env('regions')
+    downloaded_images = download_and_preprocess(request.images, regions_env.model.input_shape, padding=env.padding)
+
+    if not downloaded_images:
+        return PositionSimilarityResponse(ranked_paths=[])
+
+    images_features = regions_env.model.predict_on_images(downloaded_images)
+    images_features_transformed = regions_env.preprocessing.transform(images_features)
+
+    crop_ranking_per_image = []
+
+    for image_info, image_features in zip(request.images, images_features_transformed):
+        related_crops = regions_env.regions_data.related_crops(image_info.crop)
+        if regions_env.maximum_related_crops:
+            related_crops = related_crops[:regions_env.maximum_related_crops]
+
+        logging.info("%d related crops" % len(related_crops))
+        related_crops_idxs = concatenate_lists((regions_env.regions_data.crop_idxs[c] for c in related_crops))
+        features = regions_env.regions_data.features[related_crops_idxs]
+
+        closest_features_idxs, distances = closest_match(image_features, features, distance=regions_env.distance_func)
+
+        # Indexes with features are only a subset of whole data, we have to transform back
+        closest_crops_idxs = np.array(related_crops_idxs)[closest_features_idxs]
+        crop_ranking_per_image.append(zip(reversed(closest_crops_idxs), reversed(distances)))
+
+    images_with_best_crops_and_distances = np.ones((len(regions_env.regions_data.unique_src_paths), len(request.images)), dtype=np.float32)
+
+    for i_ranking, ranking in enumerate(crop_ranking_per_image):
+        for crop_idx, distance in ranking:
+            image = crop_idx_to_src_idx(crop_idx)
+            images_with_best_crops_and_distances[image, i_ranking] = distance
+
+    distances = regions_env.ranking_func(images_with_best_crops_and_distances, axis=1)
+    matched_paths = regions_env.regions_data.unique_src_paths_list
+
+    return PositionSimilarityResponse(
+        ranked_paths=list(matched_paths),
+        searched_image_rank=searched_image_rank(request.query_image, matched_paths),
+        # matched_regions=image_src_with_best_regions(images_with_best_crops_and_distances),
+        dissimilarity_scores=distances,
+    )
+
 
 def searched_image_rank(query_path: str, matched_paths: np.ndarray) -> Optional[int]:
     if not query_path:
