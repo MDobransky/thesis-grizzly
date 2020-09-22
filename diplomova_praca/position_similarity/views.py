@@ -34,7 +34,8 @@ def position_similarity_somhunter(request):
     response = position_similarity_request_somhunter(request)
     sorted_results = np.argsort(response.ranked_paths)
     distances = response.dissimilarity_scores[sorted_results]
-    return JsonResponse({"distances": distances.astype(np.float).tolist()}, status=200, safe=False)
+    distances = ";".join(str(d) for d in np.around(distances, 10))
+    return JsonResponse({"distances": distances}, status=200, safe=False)
 
 
 @csrf_exempt
