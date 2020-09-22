@@ -28,12 +28,11 @@ def position_similarity_somhunter(request):
     request = PositionSimilarityRequest(images=images_with_position_from_json_somhunter(collected_images),
                                         source="somhunter")
     response = positional_request(request)
-    data = response.dissimilarity_scores
-    data = sorted(data, key=lambda tup: tup[0])
-    paths, distances = zip(*data)
-    distances = [float(d) for d in distances]
-    return JsonResponse({"paths": paths, "distances":distances}, status=200,
-                        safe=False)
+    max_d = max(response.dissimilarity_scores)
+    distances = [(float(x) / max_d)  for _, x in
+                 sorted(zip(response.ranked_paths, response.dissimilarity_scores), key=lambda pair: pair[0])]
+    return JsonResponse({"distances": distances}, status=200, safe=False)
+
 
 @csrf_exempt
 def index(request):
@@ -86,7 +85,7 @@ def position_similarity_post(request):
     }
 
     if response.matched_regions:
-        context['matched_regions'] =  transform_crops_to_rectangles(response.matched_regions, images_to_render)
+        context['matched_regions'] = transform_crops_to_rectangles(response.matched_regions, images_to_render)
 
     save_request.save()
     return JsonResponse(context, status=200)
@@ -107,4 +106,3 @@ def position_similarity_submit_collage(request):
     collage.save()
 
     return JsonResponse({}, status=200)
-

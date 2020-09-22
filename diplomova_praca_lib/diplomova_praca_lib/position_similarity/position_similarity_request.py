@@ -229,6 +229,7 @@ def position_similarity_request(request: PositionSimilarityRequest) -> PositionS
     distances = regions_env.ranking_func(images_with_best_crops_and_distances, axis=1)
     ranked_results = np.argsort(distances)
     matched_paths = regions_env.regions_data.unique_src_paths_list[ranked_results]
+    distances = distances[ranked_results]
 
     return PositionSimilarityResponse(
         ranked_paths=list(matched_paths),

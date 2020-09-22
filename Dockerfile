@@ -10,7 +10,7 @@ RUN apt update && apt install -y libsm6 libxext6 libgl1-mesa-glx nano
 
 RUN python -m pip install --upgrade pip setuptools wheel
 RUN pip install mxnet-cu101
-RUN pip install tensorflow-gpu>=2.0 Pillow numpy opencv-python scikit-learn MiniSom matplotlib
+RUN pip install tensorflow-gpu==2.0.2 Pillow numpy opencv-python scikit-learn MiniSom matplotlib tensorflow>=2.0
 
 RUN mkdir /diplomova_praca_lib
 COPY diplomova_praca_lib /diplomova_praca_lib
