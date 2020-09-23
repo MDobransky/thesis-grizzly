@@ -1,21 +1,20 @@
 import json
 import logging
+from typing import List
 
+import numpy as np
 from django.http import HttpResponseRedirect, JsonResponse, HttpResponseNotFound
 from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 
 from diplomova_praca_lib.position_similarity.models import PositionSimilarityRequest, PositionMethod
 from diplomova_praca_lib.position_similarity.position_similarity_request import positional_request, available_images, \
-    initialize_env, position_similarity_request_somhunter
-from diplomova_praca_lib.utils import images_with_position_from_json, path_from_css_background, \
-    images_with_position_from_json_somhunter
+    initialize_env, position_similarity_request, paths_ids
 from diplomova_praca_lib.utils import images_with_position_from_json, path_from_css_background
+from diplomova_praca_lib.utils import images_with_position_from_json_somhunter
+from diplomova_praca_lib.utils import timer
 from shared.utils import random_image_path, thumbnail_path, random_subset_image_path, THUMBNAILS_PATH
 from .models import PositionRequest, Collage
-from diplomova_praca_lib.utils import timer
-import numpy as np
-
 
 
 @csrf_exempt
@@ -26,16 +25,40 @@ def alive(request):
 @csrf_exempt
 @timer
 def position_similarity_somhunter(request):
-    collected_images = json.loads(request.POST.get('data', ''))['collectedImages']
+    somhunter_request = json.loads(request.POST.get('data', ''))
+    collected_images = somhunter_request['collectedImages']
+
     if not collected_images:
         return JsonResponse({"error": "No images in collage."}, status=400)
+
     request = PositionSimilarityRequest(images=images_with_position_from_json_somhunter(collected_images),
                                         source="somhunter")
-    response = position_similarity_request_somhunter(request)
+    response = position_similarity_request(request)
+
+    if 'topn' in somhunter_request:
+        # Return also the index of image with distances
+        top_count = somhunter_request['topn']
+
+        top_n_distances = response.dissimilarity_scores[:top_count]
+        top_n_paths_idxs = paths_ids(response.ranked_paths[:top_count])
+
+        return JsonResponse({"idxs": minify_numbers(top_n_paths_idxs), "distances": minify_distances(top_n_distances)},
+                            status=200, safe=False)
+
+    # Returns the distances sorted by the image idx, i.e. at second position is the distance of second image.
     sorted_results = np.argsort(response.ranked_paths)
     distances = response.dissimilarity_scores[sorted_results]
-    distances = ";".join(str(d) for d in np.around(distances, 10))
+    distances = minify_distances(distances)
+
     return JsonResponse({"distances": distances}, status=200, safe=False)
+
+
+def minify_numbers(numbers: List[int]):
+    return ";".join(str(n) for n in numbers)
+
+
+def minify_distances(distances: List[float]) -> str:
+    return ";".join(str(d) for d in np.around(distances, 10))
 
 
 @csrf_exempt
