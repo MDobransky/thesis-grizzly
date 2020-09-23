@@ -41,6 +41,7 @@ def position_similarity_somhunter(request):
 
         top_n_distances = response.dissimilarity_scores[:top_count]
         top_n_paths_idxs = paths_ids(response.ranked_paths[:top_count])
+        top_n_distances = normalize_distances(top_n_distances)
 
         return JsonResponse({"idxs": minify_numbers(top_n_paths_idxs), "distances": minify_distances(top_n_distances)},
                             status=200, safe=False)
@@ -48,6 +49,7 @@ def position_similarity_somhunter(request):
     # Returns the distances sorted by the image idx, i.e. at second position is the distance of second image.
     sorted_results = np.argsort(response.ranked_paths)
     distances = response.dissimilarity_scores[sorted_results]
+    distances = normalize_distances(distances)
     distances = minify_distances(distances)
 
     return JsonResponse({"distances": distances}, status=200, safe=False)
@@ -60,6 +62,10 @@ def minify_numbers(numbers: List[int]):
 def minify_distances(distances: List[float]) -> str:
     return ";".join(str(d) for d in np.around(distances, 10))
 
+def normalize_distances(distances: List[float]) -> List[float]:
+    m = max(distances)
+    distances = [d/m for d in distances]
+    return distances
 
 @csrf_exempt
 def index(request):
