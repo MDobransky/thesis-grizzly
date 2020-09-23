@@ -62,10 +62,11 @@ def minify_numbers(numbers: List[int]):
 def minify_distances(distances: List[float]) -> str:
     return ";".join(str(d) for d in np.around(distances, 10))
 
+
 def normalize_distances(distances: List[float]) -> List[float]:
-    m = max(distances)
-    distances = [d/m for d in distances]
+    distances = [d / 2. for d in distances]
     return distances
+
 
 @csrf_exempt
 def index(request):
