@@ -29,7 +29,7 @@ def position_similarity_somhunter(request):
     collected_images = somhunter_request['collectedImages']
 
     if not collected_images:
-        return JsonResponse({"error": "No images in collage."}, status=400)
+        return JsonResponse({"message": "No images in the collage."}, status=400)
 
     request = PositionSimilarityRequest(images=images_with_position_from_json_somhunter(collected_images),
                                         source="somhunter")
